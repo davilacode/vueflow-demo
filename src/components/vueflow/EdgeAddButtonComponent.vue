@@ -9,6 +9,14 @@ const props = defineProps({
     type: String,
     required: true
   },
+  source: {
+    type: String,
+    required: true
+  },
+  target: {
+    type: String,
+    required: true
+  },
   sourceX: {
     type: Number,
     required: true
@@ -41,11 +49,13 @@ const props = defineProps({
     type: Object,
     required: false
   },
-  openAddNode: {
-    type: Function,
-    required: true
+  data: {
+    type: Object,
+    required: false
   }
 });
+
+const emit = defineEmits(['add-node']);
 
 const path = computed(() =>
   getBezierPath({
@@ -54,6 +64,11 @@ const path = computed(() =>
     targetPosition: props.targetPosition as Position
   })
 );
+
+function onEdgeClick() {
+  console.log('Edge clicked:', props);
+  emit('add-node', props);
+}
 </script>
 
 <script lang="ts">
@@ -76,7 +91,7 @@ export default {
       }"
       class="nodrag nopan"
     >
-      <button class="add-button" @click="openAddNode()">
+      <button class="add-button" @click="onEdgeClick">
         <Icons name="plus" />
       </button>
     </div>
