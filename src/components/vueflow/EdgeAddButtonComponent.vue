@@ -2,6 +2,7 @@
 import type { Position } from '@vue-flow/core';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
 import { computed } from 'vue';
+import Icons from '../IconsItem.vue';
 
 const props = defineProps({
   id: {
@@ -63,7 +64,7 @@ export default {
 
 <template>
   <!-- You can use the `BaseEdge` component to create your own custom edge more easily -->
-  <BaseEdge :id="id" :style="style" :path="path[0]" />
+  <BaseEdge :id="id" :style="style" :path="path[0]" :marker-end="markerEnd ?? ''" />
 
   <!-- Use the `EdgeLabelRenderer` to escape the SVG world of edges and render your own custom label in a `<div>` ctx -->
   <EdgeLabelRenderer>
@@ -75,7 +76,9 @@ export default {
       }"
       class="nodrag nopan"
     >
-      <button class="edgebutton" @click="openAddNode()">+</button>
+      <button class="add-button" @click="openAddNode()">
+        <Icons name="plus" />
+      </button>
     </div>
   </EdgeLabelRenderer>
 </template>
