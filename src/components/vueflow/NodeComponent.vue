@@ -10,6 +10,6 @@ export default {};
 </script>
 
 <template>
-  <Icons :name="props.data.icon" />
+  <Icons v-if="props.data.icon" :name="props.data.icon" />
   {{ props.data.label }}
 </template>

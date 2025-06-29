@@ -49,30 +49,15 @@ function openEditNodeDrawer(node: Node) {
   }
 }
 
-function handleAddNode(nodeType: string) {
+function handleAddSimpleNode() {
   if (!edgeForNodeAddition.value) return;
-
   const parentEdge = edgeForNodeAddition.value;
   const sourceNode = findNode(parentEdge.source);
   const targetNode = findNode(parentEdge.target);
-
   const newNodeId = `node_${idCounter++}`;
-  let newNode;
-
-  if (nodeType === 'conditional') {
-    newNode = {
-      id: newNodeId,
-      type: 'conditional',
-      position,
-      data: { label: 'Nueva Condición' }
-    };
-  } else {
-    newNode = simpleNode(newNodeId);
-  }
-
+  const newNode = simpleNode(newNodeId);
   addNodes([newNode]);
   removeEdges([parentEdge.id]);
-
   const newEdges = [
     {
       id: `e-${sourceNode!.id}-${newNodeId}`,
@@ -84,37 +69,99 @@ function handleAddNode(nodeType: string) {
       id: `e-${newNodeId}-${targetNode!.id}`,
       source: newNodeId,
       target: targetNode!.id,
-      type: 'add-button',
-      sourceHandle: nodeType === 'conditional' ? 'yes' : null
+      type: 'add-button'
     }
   ];
-
-  if (nodeType === 'conditional') {
-    const alternativeEndNode = {
-      id: `alt_end_${newNodeId}`,
-      type: 'output',
-      position,
-      label: 'Ruta "No"'
-    };
-    addNodes([alternativeEndNode]);
-    newEdges.push({
-      id: `e-${newNodeId}-no-${alternativeEndNode.id}`,
-      source: newNodeId,
-      target: alternativeEndNode.id,
-      sourceHandle: 'no',
-      type: 'custom'
-    });
-  }
-
   addEdges(newEdges);
-
   layoutGraph();
-
   void nextTick(async () => {
     await nextTick();
     layoutGraph();
   });
+  toggleOpenAddNode();
+}
 
+function handleAddBranchNode() {
+  if (!edgeForNodeAddition.value) return;
+  const parentEdge = edgeForNodeAddition.value;
+  const sourceNode = findNode(parentEdge.source);
+  const targetNode = findNode(parentEdge.target);
+  const newNodeId = `node_${idCounter++}`;
+  const newNode = {
+    id: newNodeId,
+    position,
+    class: 'wrap-node branch',
+    data: { label: 'Paso branch', icon: 'branch' },
+    width: 180,
+    height: 50
+  };
+  addNodes([newNode]);
+  removeEdges([parentEdge.id]);
+  const newEdges = [
+    {
+      id: `e-${sourceNode!.id}-${newNodeId}`,
+      source: sourceNode!.id,
+      target: newNodeId,
+      type: 'add-button'
+    }
+  ];
+  const alternativeEndNode = [
+    {
+      id: `alt_end_${newNodeId}`,
+      position,
+      width: 180,
+      height: 50,
+      class: 'wrap-node branch text-center',
+      data: { label: 'Nombre de rama' }
+    },
+    {
+      id: `alt_end_${newNodeId}_2`,
+      position,
+      width: 180,
+      height: 50,
+      class: 'wrap-node branch text-center',
+      data: { label: 'Nombre de rama' }
+    },
+    {
+      id: `output_${idCounter++}`,
+      type: 'output',
+      position,
+      data: { label: 'Fin 2' }
+    }
+  ];
+  addNodes(alternativeEndNode);
+  newEdges.push(
+    {
+      id: `e-${newNodeId}-no-${alternativeEndNode[0]!.id}`,
+      source: newNodeId,
+      target: alternativeEndNode[0]!.id,
+      type: 'default'
+    },
+    {
+      id: `e-${newNodeId}-no-${alternativeEndNode[1]!.id}`,
+      source: newNodeId,
+      target: alternativeEndNode[1]!.id,
+      type: 'default'
+    },
+    {
+      id: `e-${newNodeId}-${targetNode!.id}`,
+      source: alternativeEndNode[1]!.id,
+      target: targetNode!.id,
+      type: 'add-button'
+    },
+    {
+      id: `e-${newNodeId}-no-${alternativeEndNode[2]!.id}`,
+      source: alternativeEndNode[0]!.id,
+      target: alternativeEndNode[2]!.id,
+      type: 'add-button'
+    }
+  );
+  addEdges(newEdges);
+  layoutGraph();
+  void nextTick(async () => {
+    await nextTick();
+    layoutGraph();
+  });
   toggleOpenAddNode();
 }
 
@@ -150,13 +197,7 @@ function closeEditNode() {
 }
 
 function handleEditNode(node: Node) {
-  console.log(findNode(node.id));
-
-  // Usar updateNode para modificar el nodo en Vue Flow
   updateNode(node.id, { data: node.data });
-  // Forzar que VueFlow detecte el cambio: cambiar la referencia del array nodes
-  nodes.value = [...getNodes.value];
-
   closeEditNode();
 }
 </script>
@@ -188,7 +229,8 @@ function handleEditNode(node: Node) {
       :isOpenAddNode="isOpenAddNode"
       v-model="isOpenAddNode"
       @toggleOpenAddNode="toggleOpenAddNode"
-      @addNode="handleAddNode"
+      @addSimpleNode="handleAddSimpleNode"
+      @addBranchNode="handleAddBranchNode"
     />
     <EditNodeDrawer
       :isOpenEditNode="isOpenEditNode"
@@ -302,10 +344,18 @@ $brown: #af885d;
   border-radius: 8px;
   cursor: pointer;
   &.vue-flow__node-default {
-    border-color: $green;
     text-align: left;
-    &.selected {
-      box-shadow: 0 0 0 0.5px $green;
+    &.simple {
+      border-color: $green;
+      &.selected {
+        box-shadow: 0 0 0 0.5px $green;
+      }
+    }
+    &.branch {
+      border-color: $orange;
+      &.selected {
+        box-shadow: 0 0 0 0.5px $orange;
+      }
     }
     svg {
       height: 2rem;

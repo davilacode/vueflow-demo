@@ -10,10 +10,17 @@ const props = defineProps({
 
 const { isOpenAddNode } = props;
 
-const emit = defineEmits(['addNode', 'toggleOpenAddNode']);
+const emit = defineEmits(['addSimpleNode', 'addBranchNode', 'toggleOpenAddNode']);
 
 function onClick(type: string) {
-  emit('addNode', type);
+  if (type === 'simple') {
+    emit('addSimpleNode', type);
+    return;
+  }
+  if (type === 'conditional') {
+    emit('addBranchNode', type);
+    return;
+  }
 }
 </script>
 
