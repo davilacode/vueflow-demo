@@ -5,11 +5,10 @@ import { MarkerType, VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import EdgeAddButtonComponent from 'src/components/vueflow/EdgeAddButtonComponent.vue';
 import { useLayout } from 'src/components/useLayout';
-import { watch } from 'vue';
 
 let idCounter = 3;
 const position = { x: 0, y: 0 };
-const { getNodes, findNode, addNodes, addEdges, removeEdges, onPaneReady } = useVueFlow();
+const { findNode, addNodes, addEdges, removeEdges } = useVueFlow();
 
 const openAddNode = ref(false);
 const edgeForNodeAddition = ref<Edge | null>(null);
@@ -18,13 +17,13 @@ const nodes = ref<Node[]>([
   {
     id: '1',
     type: 'input',
-    position,
+    position: { x: 250, y: 5 },
     data: { label: 'Inicio' }
   },
   {
     id: '2',
     type: 'output',
-    position,
+    position: { x: 256, y: 120 },
     data: { label: 'Fin' }
   }
 ]);
@@ -54,11 +53,10 @@ function handleNodeTypeSelected(nodeType: string) {
   const newNodeId = `node_${idCounter++}`;
   let newNode;
 
-  // Creamos el nuevo nodo según el tipo seleccionado
   if (nodeType === 'conditional') {
     newNode = {
       id: newNodeId,
-      type: 'conditional', // Usamos el tipo para el nodo personalizado
+      type: 'conditional',
       position,
       data: { label: 'Nueva Condición' }
     };
@@ -70,8 +68,6 @@ function handleNodeTypeSelected(nodeType: string) {
       position
     };
   }
-
-  console.log('Adding new node:', newNode);
 
   addNodes([newNode]);
   removeEdges([parentEdge.id]);
@@ -95,6 +91,7 @@ function handleNodeTypeSelected(nodeType: string) {
   if (nodeType === 'conditional') {
     const alternativeEndNode = {
       id: `alt_end_${newNodeId}`,
+      type: 'output',
       position,
       label: 'Ruta "No"'
     };
@@ -110,33 +107,32 @@ function handleNodeTypeSelected(nodeType: string) {
 
   addEdges(newEdges);
 
-  toggleOpenAddNode();
-  // Cerramos y reseteamos el estado del modal
-}
-
-onPaneReady((i) => {
-  void i.fitView();
-});
-
-watch(getNodes, (nodes) => {
-  console.log('Nodes changed:', nodes);
-
   layoutGraph();
-});
+
+  void nextTick(async () => {
+    await nextTick();
+    layoutGraph();
+  });
+
+  toggleOpenAddNode();
+}
 
 function toggleOpenAddNode() {
   openAddNode.value = !openAddNode.value;
 }
 
-const { layout } = useLayout();
-
-const { fitView } = useVueFlow();
+const { layout } = useLayout(findNode);
+const { fitView, getNodes, getEdges, setNodes } = useVueFlow();
 
 function layoutGraph() {
-  console.log('Layouting graph...', nodes.value, edges.value);
-  nodes.value = layout(nodes.value, edges.value, 'TB');
+  const currentNodes = getNodes.value;
+  const currentEdges = getEdges.value;
 
   void nextTick(async () => {
+    // await nextTick();
+    const laidOutNodes = layout(currentNodes, currentEdges);
+    setNodes(laidOutNodes);
+    await nextTick();
     await fitView();
   });
 }
@@ -144,7 +140,7 @@ function layoutGraph() {
 
 <template>
   <q-page>
-    <VueFlow :nodes="nodes" :edges="edges">
+    <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init>
       <Background />
 
       <template #edge-add-button="edgeAddButtonProps">

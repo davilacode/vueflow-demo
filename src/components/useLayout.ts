@@ -1,40 +1,39 @@
 import dagre from '@dagrejs/dagre';
-import type { Node, Edge } from '@vue-flow/core';
-import { Position, useVueFlow } from '@vue-flow/core';
+import type { Node as VueFlowNode, Edge } from '@vue-flow/core';
+import { Position } from '@vue-flow/core';
 import { ref } from 'vue';
 
-/**
- * Composable to run the layout algorithm on the graph.
- * It uses the `dagre` library to calculate the layout of the nodes and edges.
- */
-export function useLayout() {
-  const { findNode } = useVueFlow();
+type Node = VueFlowNode & {
+  dimensions?: {
+    width?: number;
+    height?: number;
+  };
+};
 
+export function useLayout(findNode?: (id: string) => Node | undefined) {
   const graph = ref(new dagre.graphlib.Graph());
 
-  const previousDirection = ref('LR');
-
-  function layout(nodes: Node[], edges: Edge[], direction: 'LR' | 'TB') {
-    // we create a new graph instance, in case some nodes/edges were removed, otherwise dagre would act as if they were still there
+  function layout(nodes: Node[], edges: Edge[]) {
     const dagreGraph = new dagre.graphlib.Graph();
 
     graph.value = dagreGraph;
 
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    const isHorizontal = direction === 'LR';
-    dagreGraph.setGraph({ rankdir: direction });
-
-    previousDirection.value = direction;
+    dagreGraph.setGraph({ rankdir: 'TB' });
 
     for (const node of nodes) {
-      // if you need width+height of nodes for your layout, you can use the dimensions property of the internal node (`GraphNode` type)
-      const graphNode = findNode(node.id);
-
-      dagreGraph.setNode(node.id, {
-        width: graphNode!.dimensions.width || 150,
-        height: graphNode!.dimensions.height || 50
-      });
+      let width = 180;
+      let height = 60;
+      if (findNode) {
+        const graphNode = findNode(node.id);
+        console.log('graphNode', node.id, graphNode?.dimensions);
+        if (graphNode && graphNode.dimensions) {
+          width = graphNode.dimensions.width || width;
+          height = graphNode.dimensions.height || height;
+        }
+      }
+      dagreGraph.setNode(node.id, { width, height });
     }
 
     for (const edge of edges) {
@@ -43,18 +42,29 @@ export function useLayout() {
 
     dagre.layout(dagreGraph);
 
-    // set nodes with updated positions
+    // set nodes with updated positions, alineados por el centro
     return nodes.map((node) => {
       const nodeWithPosition = dagreGraph.node(node.id);
-
+      let width = 0,
+        height = 0;
+      if (findNode) {
+        const graphNode = findNode(node.id);
+        if (graphNode && graphNode.dimensions) {
+          width = graphNode.dimensions.width || width;
+          height = graphNode.dimensions.height || height;
+        }
+      }
       return {
         ...node,
-        targetPosition: isHorizontal ? Position.Left : Position.Top,
-        sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
-        position: { x: nodeWithPosition.x, y: nodeWithPosition.y }
+        targetPosition: Position.Top,
+        sourcePosition: Position.Bottom,
+        position: {
+          x: nodeWithPosition.x - width / 2,
+          y: nodeWithPosition.y - height / 2
+        }
       };
     });
   }
 
-  return { graph, layout, previousDirection };
+  return { graph, layout };
 }
