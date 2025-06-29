@@ -126,7 +126,7 @@ function handleAddBranchNode() {
       id: `output_${idCounter++}`,
       type: 'output',
       position,
-      data: { label: 'Fin 2' }
+      data: { label: 'Fin' }
     }
   ];
   addNodes(alternativeEndNode);
@@ -135,13 +135,13 @@ function handleAddBranchNode() {
       id: `e-${newNodeId}-no-${alternativeEndNode[0]!.id}`,
       source: newNodeId,
       target: alternativeEndNode[0]!.id,
-      type: 'default'
+      type: 'smoothstep'
     },
     {
       id: `e-${newNodeId}-no-${alternativeEndNode[1]!.id}`,
       source: newNodeId,
       target: alternativeEndNode[1]!.id,
-      type: 'default'
+      type: 'smoothstep'
     },
     {
       id: `e-${newNodeId}-${targetNode!.id}`,

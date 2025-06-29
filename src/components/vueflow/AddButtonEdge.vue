@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Position } from '@vue-flow/core';
-import { BaseEdge, EdgeLabelRenderer, getBezierPath } from '@vue-flow/core';
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@vue-flow/core';
 import { computed } from 'vue';
 import Icons from '../IconsItem.vue';
 
@@ -58,7 +58,7 @@ const props = defineProps({
 const emit = defineEmits(['openAddNodeDrawer']);
 
 const path = computed(() =>
-  getBezierPath({
+  getSmoothStepPath({
     ...props,
     sourcePosition: props.sourcePosition as Position,
     targetPosition: props.targetPosition as Position
@@ -77,10 +77,14 @@ export default {
 </script>
 
 <template>
-  <!-- You can use the `BaseEdge` component to create your own custom edge more easily -->
-  <BaseEdge :id="id" :style="style" :path="path[0]" :marker-end="markerEnd ?? ''" />
+  <BaseEdge
+    type="smoothstep"
+    :id="id"
+    :style="style"
+    :path="path[0]"
+    :marker-end="markerEnd ?? ''"
+  />
 
-  <!-- Use the `EdgeLabelRenderer` to escape the SVG world of edges and render your own custom label in a `<div>` ctx -->
   <EdgeLabelRenderer>
     <div
       :style="{
