@@ -15,14 +15,24 @@ let idCounter = 3;
 
 const position = { x: 0, y: 0 };
 
-const { findNode, addNodes, addEdges, removeEdges, fitView, getNodes, getEdges, setNodes } =
-  useVueFlow();
+const {
+  findNode,
+  addNodes,
+  updateNode,
+  addEdges,
+  removeEdges,
+  fitView,
+  getNodes,
+  getEdges,
+  setNodes
+} = useVueFlow();
 
 const { layout } = useLayout(findNode);
 
 const isOpenAddNode = ref(false);
 const edgeForNodeAddition = ref<Edge | null>(null);
 const isOpenEditNode = ref(false);
+const nodeForEdit = ref<Node | null>(null);
 
 const nodes = ref<Node[]>(initialNodes);
 
@@ -32,8 +42,11 @@ function openAddNodeDrawer(edgeProps: Edge) {
   edgeForNodeAddition.value = edgeProps; // Guardamos los datos del edge
   isOpenAddNode.value = true; // Mostramos el modal
 }
-function openEditNodeDrawer() {
-  isOpenEditNode.value = true; // Mostramos el modal
+function openEditNodeDrawer(node: Node) {
+  if (node.type !== 'output' && node.type !== 'input') {
+    nodeForEdit.value = node;
+    isOpenEditNode.value = true;
+  }
 }
 
 function handleAddNode(nodeType: string) {
@@ -127,8 +140,24 @@ function layoutGraph() {
 }
 
 function onNodeEdit(event: NodeMouseEvent) {
-  console.log('Node clicked:', event);
-  openEditNodeDrawer();
+  const { node } = event;
+  openEditNodeDrawer(node);
+}
+
+function closeEditNode() {
+  isOpenEditNode.value = false;
+  nodeForEdit.value = null;
+}
+
+function handleEditNode(node: Node) {
+  console.log(findNode(node.id));
+
+  // Usar updateNode para modificar el nodo en Vue Flow
+  updateNode(node.id, { data: node.data });
+  // Forzar que VueFlow detecte el cambio: cambiar la referencia del array nodes
+  nodes.value = [...getNodes.value];
+
+  closeEditNode();
 }
 </script>
 
@@ -163,9 +192,11 @@ function onNodeEdit(event: NodeMouseEvent) {
     />
     <EditNodeDrawer
       :isOpenEditNode="isOpenEditNode"
+      :node="nodeForEdit"
+      v-if="nodeForEdit !== null"
       v-model="isOpenEditNode"
-      @toggleOpenAddNode="toggleOpenAddNode"
-      @addNode="handleAddNode"
+      @closeEditNode="closeEditNode"
+      @editNode="handleEditNode"
     />
   </q-page>
 </template>
@@ -272,6 +303,7 @@ $brown: #af885d;
   cursor: pointer;
   &.vue-flow__node-default {
     border-color: $green;
+    text-align: left;
     &.selected {
       box-shadow: 0 0 0 0.5px $green;
     }
