@@ -1,5 +1,5 @@
 import dagre from '@dagrejs/dagre';
-import type { Node as VueFlowNode, Edge } from '@vue-flow/core';
+import type { Node as VueFlowNode, Edge, FindNode } from '@vue-flow/core';
 import { Position } from '@vue-flow/core';
 import { ref } from 'vue';
 
@@ -10,7 +10,7 @@ type Node = VueFlowNode & {
   };
 };
 
-export function useLayout(findNode?: (id: string) => Node | undefined) {
+export function useLayout(findNode: FindNode) {
   const graph = ref(new dagre.graphlib.Graph());
 
   function layout(nodes: Node[], edges: Edge[]) {
@@ -27,7 +27,6 @@ export function useLayout(findNode?: (id: string) => Node | undefined) {
       let height = 60;
       if (findNode) {
         const graphNode = findNode(node.id);
-        console.log('graphNode', node.id, graphNode?.dimensions);
         if (graphNode && graphNode.dimensions) {
           width = graphNode.dimensions.width || width;
           height = graphNode.dimensions.height || height;

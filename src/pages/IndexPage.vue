@@ -1,49 +1,42 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
-import type { Node, Edge } from '@vue-flow/core';
-import { MarkerType, VueFlow, useVueFlow } from '@vue-flow/core';
+import type { Node, Edge, NodeMouseEvent } from '@vue-flow/core';
+import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import EdgeAddButtonComponent from 'src/components/vueflow/EdgeAddButtonComponent.vue';
+import EdgeAddButtonComponent from 'src/components/vueflow/AddButtonEdge.vue';
+import NodeComponent from 'src/components/vueflow/NodeComponent.vue';
 import { useLayout } from 'src/components/useLayout';
+import { initialEdges, initialNodes, simpleNode } from 'src/components/elements';
+
+import AddNodeDrawer from 'src/components/drawers/AddNode.vue';
+import EditNodeDrawer from 'src/components/drawers/EditNode.vue';
 
 let idCounter = 3;
+
 const position = { x: 0, y: 0 };
-const { findNode, addNodes, addEdges, removeEdges } = useVueFlow();
 
-const openAddNode = ref(false);
+const { findNode, addNodes, addEdges, removeEdges, fitView, getNodes, getEdges, setNodes } =
+  useVueFlow();
+
+const { layout } = useLayout(findNode);
+
+const isOpenAddNode = ref(false);
 const edgeForNodeAddition = ref<Edge | null>(null);
+const isOpenEditNode = ref(false);
 
-const nodes = ref<Node[]>([
-  {
-    id: '1',
-    type: 'input',
-    position: { x: 250, y: 5 },
-    data: { label: 'Inicio' }
-  },
-  {
-    id: '2',
-    type: 'output',
-    position: { x: 256, y: 120 },
-    data: { label: 'Fin' }
-  }
-]);
+const nodes = ref<Node[]>(initialNodes);
 
-const edges = ref<Edge[]>([
-  {
-    id: 'e1->2',
-    type: 'add-button',
-    source: '1',
-    target: '2',
-    markerEnd: MarkerType.ArrowClosed
-  }
-]);
+const edges = ref<Edge[]>(initialEdges);
 
-function openAddNodeModal(edgeProps: Edge) {
+function openAddNodeDrawer(edgeProps: Edge) {
   edgeForNodeAddition.value = edgeProps; // Guardamos los datos del edge
-  openAddNode.value = true; // Mostramos el modal
+  isOpenAddNode.value = true; // Mostramos el modal
+}
+function openEditNodeDrawer() {
+  isOpenEditNode.value = true; // Mostramos el modal
 }
 
-function handleNodeTypeSelected(nodeType: string) {
+function handleAddNode(nodeType: string) {
   if (!edgeForNodeAddition.value) return;
 
   const parentEdge = edgeForNodeAddition.value;
@@ -61,12 +54,7 @@ function handleNodeTypeSelected(nodeType: string) {
       data: { label: 'Nueva Condición' }
     };
   } else {
-    newNode = {
-      id: newNodeId,
-      type: 'default', // Nodo estándar
-      label: `Nuevo Nodo ${newNodeId}`,
-      position
-    };
+    newNode = simpleNode(newNodeId);
   }
 
   addNodes([newNode]);
@@ -118,45 +106,67 @@ function handleNodeTypeSelected(nodeType: string) {
 }
 
 function toggleOpenAddNode() {
-  openAddNode.value = !openAddNode.value;
+  isOpenAddNode.value = !isOpenAddNode.value;
 }
-
-const { layout } = useLayout(findNode);
-const { fitView, getNodes, getEdges, setNodes } = useVueFlow();
 
 function layoutGraph() {
   const currentNodes = getNodes.value;
   const currentEdges = getEdges.value;
 
   void nextTick(async () => {
-    // await nextTick();
     const laidOutNodes = layout(currentNodes, currentEdges);
     setNodes(laidOutNodes);
     await nextTick();
-    await fitView();
+    await fitView({
+      offset: {
+        x: -120,
+        y: 0
+      }
+    });
   });
+}
+
+function onNodeEdit(event: NodeMouseEvent) {
+  console.log('Node clicked:', event);
+  openEditNodeDrawer();
 }
 </script>
 
 <template>
   <q-page>
-    <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init>
+    <VueFlow
+      :nodes="nodes"
+      :edges="edges"
+      @node-click="onNodeEdit"
+      @nodes-initialized="layoutGraph"
+      fit-view-on-init
+    >
       <Background />
 
+      <template #node-default="nodeProps">
+        <NodeComponent v-bind="nodeProps" />
+      </template>
+
       <template #edge-add-button="edgeAddButtonProps">
-        <EdgeAddButtonComponent v-bind="edgeAddButtonProps" @add-node="openAddNodeModal" />
+        <EdgeAddButtonComponent
+          v-bind="edgeAddButtonProps"
+          @openAddNodeDrawer="openAddNodeDrawer"
+        />
       </template>
     </VueFlow>
 
-    <q-drawer elevated v-model="openAddNode" bordered overlay side="right">
-      <h3 class="text-subtitle1">Agregar nodo</h3>
-      <q-list>
-        <q-item-label @click="handleNodeTypeSelected('default')">Default</q-item-label>
-      </q-list>
-      <q-list>
-        <q-item-label @click="handleNodeTypeSelected('conditional')">Condicional</q-item-label>
-      </q-list>
-    </q-drawer>
+    <AddNodeDrawer
+      :isOpenAddNode="isOpenAddNode"
+      v-model="isOpenAddNode"
+      @toggleOpenAddNode="toggleOpenAddNode"
+      @addNode="handleAddNode"
+    />
+    <EditNodeDrawer
+      :isOpenEditNode="isOpenEditNode"
+      v-model="isOpenEditNode"
+      @toggleOpenAddNode="toggleOpenAddNode"
+      @addNode="handleAddNode"
+    />
   </q-page>
 </template>
 
@@ -166,6 +176,11 @@ function layoutGraph() {
 
 /* import the default theme, this is optional but generally recommended */
 @import '@vue-flow/core/dist/theme-default.css';
+
+$green: #66aa2b;
+$orange: #ea910f;
+$brown: #af885d;
+
 .vue-flow {
   width: 100%;
   height: 100vh;
@@ -233,6 +248,69 @@ function layoutGraph() {
       height: calc(1.2rem + 2px);
       width: calc(1.2rem + 2px);
       border: 2px solid #666666;
+    }
+  }
+}
+
+.text-green {
+  color: $green;
+}
+.text-orange {
+  color: $orange;
+}
+.text-brown {
+  color: $brown;
+}
+
+.wrap-node {
+  background: #fff;
+  display: flex;
+  padding: 0.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  &.vue-flow__node-default {
+    border-color: $green;
+    &.selected {
+      box-shadow: 0 0 0 0.5px $green;
+    }
+    svg {
+      height: 2rem;
+      width: 2rem;
+      padding: 0.4rem;
+      border-radius: 8px;
+    }
+  }
+  &.btn {
+    border: 1px solid #e5e5e5;
+    width: 100%;
+    &:hover {
+      border: 1px solid #666;
+    }
+    svg {
+      height: 3rem;
+      width: 3rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+    }
+  }
+  &.simple {
+    svg {
+      color: $green;
+      background: #e8efe1;
+    }
+  }
+  &.branch {
+    svg {
+      color: $orange;
+      background: #fff1d7;
+    }
+  }
+  &.others {
+    svg {
+      color: $brown;
+      background: #f4ebe4;
     }
   }
 }

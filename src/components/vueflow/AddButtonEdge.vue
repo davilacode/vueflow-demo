@@ -55,7 +55,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['add-node']);
+const emit = defineEmits(['openAddNodeDrawer']);
 
 const path = computed(() =>
   getBezierPath({
@@ -65,9 +65,8 @@ const path = computed(() =>
   })
 );
 
-function onEdgeClick() {
-  console.log('Edge clicked:', props);
-  emit('add-node', props);
+function onClick() {
+  emit('openAddNodeDrawer', props);
 }
 </script>
 
@@ -91,7 +90,7 @@ export default {
       }"
       class="nodrag nopan"
     >
-      <button class="add-button" @click="onEdgeClick">
+      <button class="add-button" @click="onClick">
         <Icons name="plus" />
       </button>
     </div>

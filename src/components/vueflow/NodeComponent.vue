@@ -1,23 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Position, Handle } from '@vue-flow/core';
 import type { NodeProps } from '@vue-flow/core';
+import Icons from '../IconsItem.vue';
 
 const props = defineProps<NodeProps>();
+defineEmits(['updateNodeInternals']);
 
-const x = computed(() => `${Math.round(props.position.x)}px`);
-const y = computed(() => `${Math.round(props.position.y)}px`);
+const { data } = props;
 </script>
 <script lang="ts">
 export default {};
 </script>
 
 <template>
-  <div class="vue-flow__node-default">
-    <div>{{ data.label }}</div>
-
-    <div>{{ x }} {{ y }}</div>
-
-    <Handle type="source" :position="Position.Bottom" />
-  </div>
+  <Icons :name="data.icon" />
+  {{ data.label }}
 </template>
