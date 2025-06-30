@@ -96,6 +96,59 @@ function removeNode(id: string) {
   setNodes(removedNodes);
 }
 
+function removeNodeDescendants(id: string) {
+  const allNodes = getNodes.value;
+  const allEdges = getEdges.value;
+
+  const nodeToRemove = allNodes.find((n) => n.id === id);
+  if (!nodeToRemove) return;
+
+  function getDescendants(nodeId: string, edges: Edge[], acc: Set<string>) {
+    const children = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+    for (const childId of children) {
+      if (!acc.has(childId)) {
+        acc.add(childId);
+        getDescendants(childId, edges, acc);
+      }
+    }
+    return acc;
+  }
+  const descendants = getDescendants(id, allEdges, new Set());
+
+  const parentEdge = allEdges.find((e) => e.target === id);
+  const parentId = parentEdge ? parentEdge.source : null;
+
+  const nodesToRemove = new Set([id, ...descendants]);
+  const remainingNodes = allNodes.filter((n) => !nodesToRemove.has(n.id));
+  const remainingEdges = allEdges.filter(
+    (e) => !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target)
+  );
+
+  const newOutputId = `output_${Date.now()}`;
+  const newOutputNode: Node = {
+    id: newOutputId,
+    type: 'output',
+    position: { x: nodeToRemove.position.x + 100, y: nodeToRemove.position.y },
+    data: { label: 'Fin' }
+  };
+  (remainingNodes as Node[]).push(newOutputNode);
+
+  if (parentId) {
+    (remainingEdges as Edge[]).push({
+      id: `e-${parentId}-${newOutputId}`,
+      source: parentId,
+      target: newOutputId,
+      type: 'add-button',
+      data: {}
+    });
+  }
+
+  setNodes(remainingNodes);
+  addEdges(remainingEdges);
+  layoutGraph();
+  closeEditNode();
+}
+
 function handleAddSimpleNode() {
   if (!edegeAddNode.value) return;
   const parentEdge = edegeAddNode.value;
@@ -161,16 +214,26 @@ function onNodeEdit(event: NodeMouseEvent) {
     }
   } else {
     const targetNode = findNode(node.id);
-    addEdges([
-      {
-        id: `e-${gotoNode.value.id}-${targetNode!.id}`,
-        source: gotoNode.value.id,
-        target: targetNode!.id,
-        animated: true
-      }
-    ]);
-    removeClassSelectableNodes();
-    gotoNode.value = null;
+    if (targetNode && (targetNode.data.type === 'branch' || targetNode.data.type === 'simple')) {
+      addEdges([
+        {
+          id: `e-${gotoNode.value.id}-${targetNode.id}`,
+          source: gotoNode.value.id,
+          target: targetNode.id,
+          animated: true
+        }
+      ]);
+      removeClassSelectableNodes();
+      updateNode(gotoNode.value.id, {
+        ...gotoNode.value,
+        class: [gotoNode.value.class, targetNode.data.type],
+        data: {
+          ...gotoNode.value.data,
+          icon: targetNode.data.type
+        }
+      });
+      gotoNode.value = null;
+    }
   }
 }
 
@@ -270,6 +333,7 @@ function layoutGraph() {
       v-model="isOpenEditNode"
       @closeEditNode="closeEditNode"
       @editNode="handleEditNode"
+      @removeNode="removeNodeDescendants"
     />
   </q-page>
 </template>
@@ -400,6 +464,19 @@ $brown: #af885d;
         box-shadow: 0 0 0 0.5px $orange;
       }
     }
+    &.goto {
+      border-color: black;
+      border-radius: 50%;
+      &.selected {
+        box-shadow: 0 0 0 0.5px $orange;
+      }
+      svg {
+        height: 2rem;
+        width: 2rem;
+        padding: 0.4rem;
+        border-radius: 8px;
+      }
+    }
     svg {
       height: 2rem;
       width: 2rem;
@@ -434,7 +511,6 @@ $brown: #af885d;
   }
   &.goto {
     svg {
-      color: $brown;
       background: #f4ebe4;
     }
   }

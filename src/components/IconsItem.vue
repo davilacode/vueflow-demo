@@ -1,17 +1,20 @@
 <script setup lang="ts">
-defineProps({
+import { computed } from 'vue';
+const props = defineProps({
   name: {
     type: String,
     required: true
   }
 });
+const iconName = computed(() => props.name);
 </script>
 <script lang="ts">
 export default {};
 </script>
 <template>
   <svg
-    v-if="name === 'plus'"
+    v-if="iconName === 'plus'"
+    :key="'plus-' + iconName"
     data-name="Modo de aislamiento"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 15.6 15.6"
@@ -42,7 +45,8 @@ export default {};
   </svg>
 
   <svg
-    v-if="name === 'branch'"
+    v-if="iconName === 'branch'"
+    :key="'branch-' + iconName"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 19.58 19.83"
     fill="none"
@@ -117,7 +121,8 @@ export default {};
   </svg>
 
   <svg
-    v-if="name === 'simple'"
+    v-if="iconName === 'simple'"
+    :key="'simple-' + iconName"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 17.3 19.16"
     fill="none"
@@ -186,7 +191,8 @@ export default {};
   </svg>
 
   <svg
-    v-if="name === 'goto'"
+    v-if="iconName === 'goto'"
+    :key="'goto-' + iconName"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 20.21 16.4"
     fill="none"

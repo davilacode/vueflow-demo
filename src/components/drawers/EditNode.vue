@@ -20,7 +20,7 @@ conditionalNodes.value.forEach((conditional) => {
   conditionalLabels.value.push(conditional.data.label || '');
 });
 
-const emit = defineEmits(['editNode', 'closeEditNode']);
+const emit = defineEmits(['editNode', 'closeEditNode', 'removeNode']);
 
 function onSubmit() {
   emit('editNode', {
@@ -60,7 +60,12 @@ export default {};
       <h3 class="text-subtitle1 text-bold text-green">Tipos de paso simple</h3>
       <q-input outlined v-model="label" label="Outlined" />
       <div class="q-py-md justify-end row q-gutter-sm">
-        <q-btn color="white" text-color="red" label="Eliminar" />
+        <q-btn
+          color="white"
+          text-color="red"
+          label="Eliminar"
+          @click="$emit('removeNode', node.id)"
+        />
         <q-btn color="white" text-color="black" label="Cancelar" @click="$emit('closeEditNode')" />
         <q-btn style="background: #333333; color: white" label="Confirmar" @click="onSubmit" />
       </div>
@@ -71,7 +76,12 @@ export default {};
       <q-input class="q-mb-sm" outlined v-model="conditionalLabels[0]" label="Condicional 1" />
       <q-input outlined v-model="conditionalLabels[1]" label="Condicional 2" />
       <div class="q-py-md justify-end row q-gutter-sm">
-        <q-btn color="white" text-color="red" label="Eliminar" />
+        <q-btn
+          color="white"
+          text-color="red"
+          label="Eliminar"
+          @click="$emit('removeNode', node.id)"
+        />
         <q-btn color="white" text-color="black" label="Cancelar" @click="$emit('closeEditNode')" />
         <q-btn style="background: #333333; color: white" label="Confirmar" @click="onSubmit" />
       </div>
