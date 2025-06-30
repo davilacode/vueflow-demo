@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
-import type { Node, Edge, NodeMouseEvent } from '@vue-flow/core';
+import type { Node, Edge, NodeMouseEvent, GraphNode } from '@vue-flow/core';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import EdgeAddButtonComponent from 'src/components/vueflow/AddButtonEdge.vue';
@@ -33,6 +33,7 @@ const isOpenAddNode = ref(false);
 const edgeForNodeAddition = ref<Edge | null>(null);
 const isOpenEditNode = ref(false);
 const nodeForEdit = ref<Node | null>(null);
+const conditionalsForEdit = ref<GraphNode[]>([]);
 
 const nodes = ref<Node[]>(initialNodes);
 
@@ -42,9 +43,10 @@ function openAddNodeDrawer(edgeProps: Edge) {
   edgeForNodeAddition.value = edgeProps; // Guardamos los datos del edge
   isOpenAddNode.value = true; // Mostramos el modal
 }
-function openEditNodeDrawer(node: Node) {
+function openEditNodeDrawer(node: Node, conditionals: GraphNode[] = []) {
   if (node.type !== 'output' && node.type !== 'input') {
     nodeForEdit.value = node;
+    conditionalsForEdit.value = conditionals;
     isOpenEditNode.value = true;
   }
 }
@@ -91,7 +93,7 @@ function handleAddBranchNode() {
     id: newNodeId,
     position,
     class: 'wrap-node branch',
-    data: { label: 'Paso branch', icon: 'branch' },
+    data: { label: 'Paso branch', type: 'branch' },
     width: 180,
     height: 50
   };
@@ -188,16 +190,32 @@ function layoutGraph() {
 
 function onNodeEdit(event: NodeMouseEvent) {
   const { node } = event;
-  openEditNodeDrawer(node);
+
+  if (node.data && node.data.type === 'branch') {
+    const branchEdges = getEdges.value.filter((e) => e.source === node.id);
+    const conditionalNodes = branchEdges
+      .map((e) => findNode(e.target))
+      .filter((n): n is GraphNode => n !== undefined);
+    openEditNodeDrawer(node, conditionalNodes);
+  } else {
+    openEditNodeDrawer(node);
+  }
 }
 
 function closeEditNode() {
   isOpenEditNode.value = false;
   nodeForEdit.value = null;
+  conditionalsForEdit.value = [];
 }
 
-function handleEditNode(node: Node) {
+function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
+  const { node, conditionals } = data;
   updateNode(node.id, { data: node.data });
+  if (conditionals.length > 0) {
+    conditionals.forEach((conditional) => {
+      updateNode(conditional.id, { data: conditional.data });
+    });
+  }
   closeEditNode();
 }
 </script>
@@ -235,6 +253,7 @@ function handleEditNode(node: Node) {
     <EditNodeDrawer
       :isOpenEditNode="isOpenEditNode"
       :node="nodeForEdit"
+      :conditionals="conditionalsForEdit"
       v-if="nodeForEdit !== null"
       v-model="isOpenEditNode"
       @closeEditNode="closeEditNode"

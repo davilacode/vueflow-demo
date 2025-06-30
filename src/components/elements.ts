@@ -31,7 +31,7 @@ export const initialEdges: Edge[] = [
 export const simpleNode = (id: string): Node => ({
   id,
   class: 'wrap-node simple',
-  data: { label: 'Paso simple', icon: 'simple' },
+  data: { label: 'Paso simple', type: 'simple' },
   width: 180,
   height: 50,
   position
