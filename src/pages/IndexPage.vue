@@ -3,18 +3,24 @@ import { nextTick, ref } from 'vue';
 import type { Node, Edge, NodeMouseEvent, GraphNode } from '@vue-flow/core';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import EdgeAddButtonComponent from 'src/components/vueflow/AddButtonEdge.vue';
-import NodeComponent from 'src/components/vueflow/NodeComponent.vue';
 import { useLayout } from 'src/components/useLayout';
-import { goToNode, initialEdges, initialNodes, simpleNode } from 'src/components/elements';
-
+import {
+  addButtonEdge,
+  branchEdges,
+  branchNode,
+  conditionalNodes,
+  goToNode,
+  initialEdges,
+  initialNodes,
+  simpleNode
+} from 'src/components/elements';
+import EdgeAddButtonComponent from 'src/components/vueflow/AddButtonEdge.vue';
 import AddNodeDrawer from 'src/components/drawers/AddNode.vue';
 import EditNodeDrawer from 'src/components/drawers/EditNode.vue';
+import NodeComponent from 'src/components/vueflow/NodeComponent.vue';
 import NodeGoTo from 'src/components/vueflow/NodeGoTo.vue';
 
 let idCounter = 3;
-
-const position = { x: 0, y: 0 };
 
 const {
   findNode,
@@ -31,29 +37,40 @@ const {
 const { layout } = useLayout(findNode);
 
 const isOpenAddNode = ref(false);
-const edgeForNodeAddition = ref<Edge | null>(null);
 const isOpenEditNode = ref(false);
-const isGoToNode = ref<Node | null>(null);
-const nodeForEdit = ref<Node | null>(null);
-const conditionalsForEdit = ref<GraphNode[]>([]);
+const edegeAddNode = ref<Edge | null>(null);
+const gotoNode = ref<Node | null>(null);
+const editNode = ref<Node | null>(null);
+const editConditional = ref<GraphNode[]>([]);
 
 const nodes = ref<Node[]>(initialNodes);
 
 const edges = ref<Edge[]>(initialEdges);
 
 function openAddNodeDrawer(edgeProps: Edge) {
-  edgeForNodeAddition.value = edgeProps; // Guardamos los datos del edge
+  edegeAddNode.value = edgeProps; // Guardamos los datos del edge
   isOpenAddNode.value = true; // Mostramos el modal
 }
+
 function openEditNodeDrawer(node: Node, conditionals: GraphNode[] = []) {
   if (node.type !== 'output' && node.type !== 'input') {
-    nodeForEdit.value = node;
-    conditionalsForEdit.value = conditionals;
+    editNode.value = node;
+    editConditional.value = conditionals;
     isOpenEditNode.value = true;
   }
 }
 
-function addNodeWithEdges({
+function closeEditNode() {
+  isOpenEditNode.value = false;
+  editNode.value = null;
+  editConditional.value = [];
+}
+
+function toggleOpenAddNode() {
+  isOpenAddNode.value = !isOpenAddNode.value;
+}
+
+function addNodeEdges({
   node,
   edges = [],
   extraNodes = []
@@ -63,7 +80,7 @@ function addNodeWithEdges({
   extraNodes?: Node[];
 }) {
   addNodes([node, ...extraNodes]);
-  removeEdges([edgeForNodeAddition.value!.id]);
+  removeEdges([edegeAddNode.value!.id]);
   addEdges(edges);
   layoutGraph();
   void nextTick(async () => {
@@ -80,105 +97,33 @@ function removeNode(id: string) {
 }
 
 function handleAddSimpleNode() {
-  if (!edgeForNodeAddition.value) return;
-  const parentEdge = edgeForNodeAddition.value;
+  if (!edegeAddNode.value) return;
+  const parentEdge = edegeAddNode.value;
   const sourceNode = findNode(parentEdge.source);
   const targetNode = findNode(parentEdge.target);
+  if (!sourceNode || !targetNode) return;
   const newNodeId = `node_${idCounter++}`;
   const newNode = simpleNode(newNodeId);
-  const newEdges = [
-    {
-      id: `e-${sourceNode!.id}-${newNodeId}`,
-      source: sourceNode!.id,
-      target: newNodeId,
-      type: 'add-button'
-    },
-    {
-      id: `e-${newNodeId}-${targetNode!.id}`,
-      source: newNodeId,
-      target: targetNode!.id,
-      type: 'add-button'
-    }
-  ];
-  addNodeWithEdges({ node: newNode, edges: newEdges });
+  const newEdges = addButtonEdge(sourceNode, targetNode, newNodeId);
+  addNodeEdges({ node: newNode, edges: newEdges });
 }
 
 function handleAddBranchNode() {
-  if (!edgeForNodeAddition.value) return;
-  const parentEdge = edgeForNodeAddition.value;
+  if (!edegeAddNode.value) return;
+  const parentEdge = edegeAddNode.value;
   const sourceNode = findNode(parentEdge.source);
   const targetNode = findNode(parentEdge.target);
+  if (!sourceNode || !targetNode) return;
   const newNodeId = `node_${idCounter++}`;
-  const newNode = {
-    id: newNodeId,
-    position,
-    class: 'wrap-node branch',
-    data: { label: 'Paso branch', type: 'branch' },
-    width: 180,
-    height: 50
-  };
-  const alternativeEndNode = [
-    {
-      id: `alt_end_${newNodeId}`,
-      position,
-      width: 180,
-      height: 50,
-      class: 'wrap-node branch text-center',
-      data: { label: 'Nombre de rama' }
-    },
-    {
-      id: `alt_end_${newNodeId}_2`,
-      position,
-      width: 180,
-      height: 50,
-      class: 'wrap-node branch text-center',
-      data: { label: 'Nombre de rama' }
-    },
-    {
-      id: `output_${idCounter++}`,
-      type: 'output',
-      position,
-      data: { label: 'Fin' }
-    }
-  ];
-  const newEdges = [
-    {
-      id: `e-${sourceNode!.id}-${newNodeId}`,
-      source: sourceNode!.id,
-      target: newNodeId,
-      type: 'add-button'
-    },
-    {
-      id: `e-${newNodeId}-no-${alternativeEndNode[0]!.id}`,
-      source: newNodeId,
-      target: alternativeEndNode[0]!.id,
-      type: 'smoothstep'
-    },
-    {
-      id: `e-${newNodeId}-no-${alternativeEndNode[1]!.id}`,
-      source: newNodeId,
-      target: alternativeEndNode[1]!.id,
-      type: 'smoothstep'
-    },
-    {
-      id: `e-${newNodeId}-${targetNode!.id}`,
-      source: alternativeEndNode[1]!.id,
-      target: targetNode!.id,
-      type: 'add-button'
-    },
-    {
-      id: `e-${newNodeId}-no-${alternativeEndNode[2]!.id}`,
-      source: alternativeEndNode[0]!.id,
-      target: alternativeEndNode[2]!.id,
-      type: 'add-button'
-    }
-  ];
-  addNodeWithEdges({ node: newNode, edges: newEdges, extraNodes: alternativeEndNode });
+  const newNode = branchNode(newNodeId);
+  const alternativeEndNode = conditionalNodes(newNodeId, idCounter);
+  const newEdges = branchEdges(alternativeEndNode, sourceNode, targetNode, newNodeId);
+  addNodeEdges({ node: newNode, edges: newEdges, extraNodes: alternativeEndNode });
 }
 
 function handleAddGoToNode() {
-  if (!edgeForNodeAddition.value) return;
-  const parentEdge = edgeForNodeAddition.value;
+  if (!edegeAddNode.value) return;
+  const parentEdge = edegeAddNode.value;
   const sourceNode = findNode(parentEdge.source);
   const targetNode = findNode(parentEdge.target);
   const newNodeId = `node_${idCounter++}`;
@@ -193,11 +138,75 @@ function handleAddGoToNode() {
   ];
 
   removeNode(targetNode!.id);
-  addNodeWithEdges({ node: newNode, edges: newEdges });
+  addNodeEdges({ node: newNode, edges: newEdges });
 }
 
-function toggleOpenAddNode() {
-  isOpenAddNode.value = !isOpenAddNode.value;
+function onNodeEdit(event: NodeMouseEvent) {
+  const { node } = event;
+
+  if (!node) return;
+
+  if (!gotoNode.value) {
+    if (node.data.type === 'branch') {
+      const branchEdges = getEdges.value.filter((e) => e.source === node.id);
+      const conditionalNodes = branchEdges
+        .map((e) => findNode(e.target))
+        .filter((n): n is GraphNode => n !== undefined);
+      openEditNodeDrawer(node, conditionalNodes);
+    } else if (node.data.type === 'simple') {
+      openEditNodeDrawer(node);
+    } else if (node.data.type === 'goto') {
+      gotoNode.value = node;
+      addClassSelectableNodes();
+    }
+  } else {
+    const targetNode = findNode(node.id);
+    addEdges([
+      {
+        id: `e-${gotoNode.value.id}-${targetNode!.id}`,
+        source: gotoNode.value.id,
+        target: targetNode!.id,
+        animated: true
+      }
+    ]);
+    removeClassSelectableNodes();
+    gotoNode.value = null;
+  }
+}
+
+function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
+  const { node, conditionals } = data;
+  updateNode(node.id, { data: node.data });
+  if (conditionals.length > 0) {
+    conditionals.forEach((conditional) => {
+      updateNode(conditional.id, { data: conditional.data });
+    });
+  }
+  closeEditNode();
+}
+
+function addClassSelectableNodes() {
+  const allNodes = getNodes.value;
+  allNodes.forEach((node) => {
+    if (node.data.type === 'branch' || node.data.type === 'simple') {
+      updateNode(node.id, {
+        ...node,
+        class: [node.class, 'gotoSelectable']
+      });
+    }
+  });
+}
+
+function removeClassSelectableNodes() {
+  const allNodes = getNodes.value;
+  allNodes.forEach((n) => {
+    if (n.class && Array.isArray(n.class)) {
+      updateNode(n.id, {
+        ...n,
+        class: n.class.filter((c: string) => c !== 'gotoSelectable')
+      });
+    }
+  });
 }
 
 function layoutGraph() {
@@ -215,67 +224,6 @@ function layoutGraph() {
       }
     });
   });
-}
-
-function updateAllNode() {
-  const allNodes = getNodes.value;
-  allNodes.forEach((node) => {
-    if (node.data.type === 'branch' && node.data.type === 'simple') {
-      updateNode(node.id, {
-        ...node,
-        class: [node.class, 'selectable']
-      });
-    }
-  });
-}
-
-function onNodeEdit(event: NodeMouseEvent) {
-  const { node } = event;
-
-  if (!node) return;
-
-  if (!isGoToNode.value) {
-    if (node.data.type === 'branch') {
-      const branchEdges = getEdges.value.filter((e) => e.source === node.id);
-      const conditionalNodes = branchEdges
-        .map((e) => findNode(e.target))
-        .filter((n): n is GraphNode => n !== undefined);
-      openEditNodeDrawer(node, conditionalNodes);
-    } else if (node.data.type === 'simple') {
-      openEditNodeDrawer(node);
-    } else if (node.data.type === 'goto') {
-      isGoToNode.value = node;
-      updateAllNode();
-    }
-  } else {
-    const targetNode = findNode(node.id);
-    addEdges([
-      {
-        id: `e-${isGoToNode.value.id}-${targetNode!.id}`,
-        source: isGoToNode.value.id,
-        target: targetNode!.id,
-        animated: true
-      }
-    ]);
-    isGoToNode.value = null;
-  }
-}
-
-function closeEditNode() {
-  isOpenEditNode.value = false;
-  nodeForEdit.value = null;
-  conditionalsForEdit.value = [];
-}
-
-function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
-  const { node, conditionals } = data;
-  updateNode(node.id, { data: node.data });
-  if (conditionals.length > 0) {
-    conditionals.forEach((conditional) => {
-      updateNode(conditional.id, { data: conditional.data });
-    });
-  }
-  closeEditNode();
 }
 </script>
 
@@ -316,9 +264,9 @@ function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
     />
     <EditNodeDrawer
       :isOpenEditNode="isOpenEditNode"
-      :node="nodeForEdit"
-      :conditionals="conditionalsForEdit"
-      v-if="nodeForEdit !== null"
+      :node="editNode"
+      :conditionals="editConditional"
+      v-if="editNode !== null"
       v-model="isOpenEditNode"
       @closeEditNode="closeEditNode"
       @editNode="handleEditNode"
@@ -332,6 +280,15 @@ function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
 
 /* import the default theme, this is optional but generally recommended */
 @import '@vue-flow/core/dist/theme-default.css';
+
+@keyframes flashBorder {
+  0% {
+    box-shadow: 0 0 0 2px $blue-10;
+  }
+  100% {
+    box-shadow: 0 0 5px 8px rgba(0, 0, 0, 0);
+  }
+}
 
 $green: #66aa2b;
 $orange: #ea910f;
@@ -426,6 +383,9 @@ $brown: #af885d;
   gap: 0.5rem;
   border-radius: 8px;
   cursor: pointer;
+  &.gotoSelectable {
+    animation: flashBorder 1s infinite;
+  }
   &.vue-flow__node-default {
     text-align: left;
     &.simple {
