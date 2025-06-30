@@ -6,10 +6,11 @@ import { Background } from '@vue-flow/background';
 import EdgeAddButtonComponent from 'src/components/vueflow/AddButtonEdge.vue';
 import NodeComponent from 'src/components/vueflow/NodeComponent.vue';
 import { useLayout } from 'src/components/useLayout';
-import { initialEdges, initialNodes, simpleNode } from 'src/components/elements';
+import { goToNode, initialEdges, initialNodes, simpleNode } from 'src/components/elements';
 
 import AddNodeDrawer from 'src/components/drawers/AddNode.vue';
 import EditNodeDrawer from 'src/components/drawers/EditNode.vue';
+import NodeGoTo from 'src/components/vueflow/NodeGoTo.vue';
 
 let idCounter = 3;
 
@@ -32,6 +33,7 @@ const { layout } = useLayout(findNode);
 const isOpenAddNode = ref(false);
 const edgeForNodeAddition = ref<Edge | null>(null);
 const isOpenEditNode = ref(false);
+const isGoToNode = ref<Node | null>(null);
 const nodeForEdit = ref<Node | null>(null);
 const conditionalsForEdit = ref<GraphNode[]>([]);
 
@@ -51,6 +53,32 @@ function openEditNodeDrawer(node: Node, conditionals: GraphNode[] = []) {
   }
 }
 
+function addNodeWithEdges({
+  node,
+  edges = [],
+  extraNodes = []
+}: {
+  node: Node;
+  edges: Edge[];
+  extraNodes?: Node[];
+}) {
+  addNodes([node, ...extraNodes]);
+  removeEdges([edgeForNodeAddition.value!.id]);
+  addEdges(edges);
+  layoutGraph();
+  void nextTick(async () => {
+    await nextTick();
+    layoutGraph();
+  });
+  toggleOpenAddNode();
+}
+
+function removeNode(id: string) {
+  const allNodes = getNodes.value;
+  const removedNodes = allNodes.filter((node) => node.id !== id);
+  setNodes(removedNodes);
+}
+
 function handleAddSimpleNode() {
   if (!edgeForNodeAddition.value) return;
   const parentEdge = edgeForNodeAddition.value;
@@ -58,8 +86,6 @@ function handleAddSimpleNode() {
   const targetNode = findNode(parentEdge.target);
   const newNodeId = `node_${idCounter++}`;
   const newNode = simpleNode(newNodeId);
-  addNodes([newNode]);
-  removeEdges([parentEdge.id]);
   const newEdges = [
     {
       id: `e-${sourceNode!.id}-${newNodeId}`,
@@ -74,13 +100,7 @@ function handleAddSimpleNode() {
       type: 'add-button'
     }
   ];
-  addEdges(newEdges);
-  layoutGraph();
-  void nextTick(async () => {
-    await nextTick();
-    layoutGraph();
-  });
-  toggleOpenAddNode();
+  addNodeWithEdges({ node: newNode, edges: newEdges });
 }
 
 function handleAddBranchNode() {
@@ -97,16 +117,6 @@ function handleAddBranchNode() {
     width: 180,
     height: 50
   };
-  addNodes([newNode]);
-  removeEdges([parentEdge.id]);
-  const newEdges = [
-    {
-      id: `e-${sourceNode!.id}-${newNodeId}`,
-      source: sourceNode!.id,
-      target: newNodeId,
-      type: 'add-button'
-    }
-  ];
   const alternativeEndNode = [
     {
       id: `alt_end_${newNodeId}`,
@@ -131,8 +141,13 @@ function handleAddBranchNode() {
       data: { label: 'Fin' }
     }
   ];
-  addNodes(alternativeEndNode);
-  newEdges.push(
+  const newEdges = [
+    {
+      id: `e-${sourceNode!.id}-${newNodeId}`,
+      source: sourceNode!.id,
+      target: newNodeId,
+      type: 'add-button'
+    },
     {
       id: `e-${newNodeId}-no-${alternativeEndNode[0]!.id}`,
       source: newNodeId,
@@ -157,14 +172,28 @@ function handleAddBranchNode() {
       target: alternativeEndNode[2]!.id,
       type: 'add-button'
     }
-  );
-  addEdges(newEdges);
-  layoutGraph();
-  void nextTick(async () => {
-    await nextTick();
-    layoutGraph();
-  });
-  toggleOpenAddNode();
+  ];
+  addNodeWithEdges({ node: newNode, edges: newEdges, extraNodes: alternativeEndNode });
+}
+
+function handleAddGoToNode() {
+  if (!edgeForNodeAddition.value) return;
+  const parentEdge = edgeForNodeAddition.value;
+  const sourceNode = findNode(parentEdge.source);
+  const targetNode = findNode(parentEdge.target);
+  const newNodeId = `node_${idCounter++}`;
+  const newNode = goToNode(newNodeId);
+  const newEdges = [
+    {
+      id: `e-${sourceNode!.id}-${newNodeId}`,
+      source: sourceNode!.id,
+      target: newNodeId,
+      type: 'add-button'
+    }
+  ];
+
+  removeNode(targetNode!.id);
+  addNodeWithEdges({ node: newNode, edges: newEdges });
 }
 
 function toggleOpenAddNode() {
@@ -188,17 +217,47 @@ function layoutGraph() {
   });
 }
 
+function updateAllNode() {
+  const allNodes = getNodes.value;
+  allNodes.forEach((node) => {
+    if (node.data.type === 'branch' && node.data.type === 'simple') {
+      updateNode(node.id, {
+        ...node,
+        class: [node.class, 'selectable']
+      });
+    }
+  });
+}
+
 function onNodeEdit(event: NodeMouseEvent) {
   const { node } = event;
 
-  if (node.data && node.data.type === 'branch') {
-    const branchEdges = getEdges.value.filter((e) => e.source === node.id);
-    const conditionalNodes = branchEdges
-      .map((e) => findNode(e.target))
-      .filter((n): n is GraphNode => n !== undefined);
-    openEditNodeDrawer(node, conditionalNodes);
+  if (!node) return;
+
+  if (!isGoToNode.value) {
+    if (node.data.type === 'branch') {
+      const branchEdges = getEdges.value.filter((e) => e.source === node.id);
+      const conditionalNodes = branchEdges
+        .map((e) => findNode(e.target))
+        .filter((n): n is GraphNode => n !== undefined);
+      openEditNodeDrawer(node, conditionalNodes);
+    } else if (node.data.type === 'simple') {
+      openEditNodeDrawer(node);
+    } else if (node.data.type === 'goto') {
+      isGoToNode.value = node;
+      updateAllNode();
+    }
   } else {
-    openEditNodeDrawer(node);
+    const targetNode = findNode(node.id);
+    addEdges([
+      {
+        id: `e-${isGoToNode.value.id}-${targetNode!.id}`,
+        source: isGoToNode.value.id,
+        target: targetNode!.id,
+        animated: true
+      }
+    ]);
+    isGoToNode.value = null;
   }
 }
 
@@ -235,6 +294,10 @@ function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
         <NodeComponent v-bind="nodeProps" />
       </template>
 
+      <template #node-goto="nodeProps">
+        <NodeGoTo v-bind="nodeProps" />
+      </template>
+
       <template #edge-add-button="edgeAddButtonProps">
         <EdgeAddButtonComponent
           v-bind="edgeAddButtonProps"
@@ -249,6 +312,7 @@ function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
       @toggleOpenAddNode="toggleOpenAddNode"
       @addSimpleNode="handleAddSimpleNode"
       @addBranchNode="handleAddBranchNode"
+      @addGotoNode="handleAddGoToNode"
     />
     <EditNodeDrawer
       :isOpenEditNode="isOpenEditNode"
@@ -274,8 +338,8 @@ $orange: #ea910f;
 $brown: #af885d;
 
 .vue-flow {
-  width: 100%;
-  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
 }
 .vue-flow__node {
   &-input,
@@ -408,7 +472,7 @@ $brown: #af885d;
       background: #fff1d7;
     }
   }
-  &.others {
+  &.goto {
     svg {
       color: $brown;
       background: #f4ebe4;

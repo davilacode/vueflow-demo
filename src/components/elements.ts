@@ -36,3 +36,12 @@ export const simpleNode = (id: string): Node => ({
   height: 50,
   position
 });
+
+export const goToNode = (id: string): Node => ({
+  id,
+  class: 'wrap-node goto',
+  data: { type: 'goto' },
+  width: 50,
+  height: 50,
+  position
+});

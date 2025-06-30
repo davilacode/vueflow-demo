@@ -186,7 +186,7 @@ export default {};
   </svg>
 
   <svg
-    v-if="name === 'others'"
+    v-if="name === 'goto'"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 20.21 16.4"
     fill="none"

@@ -10,7 +10,7 @@ const props = defineProps({
 
 const { isOpenAddNode } = props;
 
-const emit = defineEmits(['addSimpleNode', 'addBranchNode', 'toggleOpenAddNode']);
+const emit = defineEmits(['addSimpleNode', 'addBranchNode', 'addGotoNode', 'toggleOpenAddNode']);
 
 function onClick(type: string) {
   if (type === 'simple') {
@@ -19,6 +19,10 @@ function onClick(type: string) {
   }
   if (type === 'conditional') {
     emit('addBranchNode', type);
+    return;
+  }
+  if (type === 'goto') {
+    emit('addGotoNode', type);
     return;
   }
 }
@@ -55,8 +59,8 @@ export default {};
       </button>
 
       <h3 class="text-subtitle1 text-bold text-brown">Otros tipos de paso</h3>
-      <button class="wrap-node btn others" @click="onClick('conditional')">
-        <Icons name="others" />
+      <button class="wrap-node btn goto" @click="onClick('goto')">
+        <Icons name="goto" />
         Paso ir a
       </button>
     </div>
