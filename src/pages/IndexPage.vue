@@ -196,7 +196,6 @@ function handleAddGoToNode() {
 
 function onNodeEdit(event: NodeMouseEvent) {
   const { node } = event;
-
   if (!node) return;
 
   if (!gotoNode.value) {
@@ -226,7 +225,16 @@ function onNodeEdit(event: NodeMouseEvent) {
       removeClassSelectableNodes();
       updateNode(gotoNode.value.id, {
         ...gotoNode.value,
-        class: [gotoNode.value.class, targetNode.data.type],
+        class: [
+          ...(Array.isArray(gotoNode.value.class)
+            ? gotoNode.value.class.filter((c: string) => c !== 'branch' && c !== 'simple')
+            : typeof gotoNode.value.class === 'string'
+              ? gotoNode.value.class
+                  .split(' ')
+                  .filter((c: string) => c !== 'branch' && c !== 'simple')
+              : []),
+          targetNode.data.type
+        ],
         data: {
           ...gotoNode.value.data,
           icon: targetNode.data.type
@@ -305,8 +313,8 @@ function layoutGraph() {
         <NodeComponent v-bind="nodeProps" />
       </template>
 
-      <template #node-goto="nodeProps">
-        <NodeGoTo v-bind="nodeProps" />
+      <template #node-goto="nodeGoToProps">
+        <NodeGoTo v-bind="nodeGoToProps" />
       </template>
 
       <template #edge-add-button="edgeAddButtonProps">
@@ -450,7 +458,7 @@ $brown: #af885d;
   &.gotoSelectable {
     animation: flashBorder 1s infinite;
   }
-  &.vue-flow__node-default {
+  &.vue-flow__node {
     text-align: left;
     &.simple {
       border-color: $green;
@@ -465,16 +473,21 @@ $brown: #af885d;
       }
     }
     &.goto {
-      border-color: black;
+      border: 1px solid black;
       border-radius: 50%;
-      &.selected {
+      &.selected.simple {
+        border-color: $green;
+        box-shadow: 0 0 0 0.5px $green;
+      }
+      &.selected.branch {
+        border-color: $orange;
         box-shadow: 0 0 0 0.5px $orange;
       }
       svg {
+        background: transparent;
         height: 2rem;
         width: 2rem;
         padding: 0.4rem;
-        border-radius: 8px;
       }
     }
     svg {

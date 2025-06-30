@@ -41,14 +41,15 @@ const createNode = (
   data: type ? { ...data, type } : data,
   width,
   height,
-  position
+  position,
+  type: type !== 'goto' ? 'default' : 'goto'
 });
 
 export const simpleNode = (id: string): Node =>
   createNode(id, 'wrap-node simple', { label: 'Paso simple' }, 180, 50, 'simple');
 
 export const goToNode = (id: string): Node =>
-  createNode(id, 'wrap-node goto', { type: 'goto', icon: 'goto' }, 50, 50);
+  createNode(id, 'wrap-node goto', { type: 'goto', icon: 'goto' }, 50, 50, 'goto');
 
 export const branchNode = (id: string): Node =>
   createNode(id, 'wrap-node branch', { label: 'Paso branch' }, 180, 50, 'branch');
