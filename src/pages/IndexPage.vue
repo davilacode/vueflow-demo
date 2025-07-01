@@ -47,11 +47,13 @@ const nodes = ref<Node[]>(initialNodes);
 
 const edges = ref<Edge[]>(initialEdges);
 
+// funcion para abrir Drawer de insertar nodos
 function openAddNodeDrawer(edgeProps: Edge) {
-  edegeAddNode.value = edgeProps; // Guardamos los datos del edge
-  isOpenAddNode.value = true; // Mostramos el modal
+  edegeAddNode.value = edgeProps;
+  isOpenAddNode.value = true;
 }
 
+// funcion para editar nodos
 function openEditNodeDrawer(node: Node, conditionals: GraphNode[] = []) {
   if (node.type !== 'output' && node.type !== 'input') {
     editNode.value = node;
@@ -60,16 +62,19 @@ function openEditNodeDrawer(node: Node, conditionals: GraphNode[] = []) {
   }
 }
 
+// funcion para cerrar Drawer de editar nodos
 function closeEditNode() {
   isOpenEditNode.value = false;
   editNode.value = null;
   editConditional.value = [];
 }
 
+// funcion para cerrar/abrir drawer de agregar nodos
 function toggleOpenAddNode() {
   isOpenAddNode.value = !isOpenAddNode.value;
 }
 
+// funcion para agregar nodos y edges
 function addNodeEdges({
   node,
   edges = [],
@@ -90,12 +95,14 @@ function addNodeEdges({
   toggleOpenAddNode();
 }
 
+// funcion para eliminar nodos
 function removeNode(id: string) {
   const allNodes = getNodes.value;
   const removedNodes = allNodes.filter((node) => node.id !== id);
   setNodes(removedNodes);
 }
 
+// funcion para eliminar nodos y edges en caso de eliminar un nodo padre
 function removeNodeDescendants(id: string) {
   const allNodes = getNodes.value;
   const allEdges = getEdges.value;
@@ -103,17 +110,18 @@ function removeNodeDescendants(id: string) {
   const nodeToRemove = allNodes.find((n) => n.id === id);
   if (!nodeToRemove) return;
 
+  // valido si uno de los nodos es tipo 'goto' para no eliminar sus hijos
   const incomingEdges = allEdges.filter((e) => e.target === id);
   const hasGotoParent = incomingEdges.some((e) => {
     const parentNode = allNodes.find((n) => n.id === e.source);
-    return parentNode && parentNode.data && parentNode.data.type === 'goto';
+    return parentNode?.data?.type === 'goto';
   });
 
   if (hasGotoParent) {
     const edgesToRemove = incomingEdges
       .filter((e) => {
         const parentNode = allNodes.find((n) => n.id === e.source);
-        return parentNode && parentNode.data && parentNode.data.type === 'goto';
+        return parentNode?.data?.type === 'goto';
       })
       .map((e) => e.id);
     removeEdges(edgesToRemove);
@@ -121,6 +129,7 @@ function removeNodeDescendants(id: string) {
     return;
   }
 
+  // busco todos los nodos descendientes
   function getDescendants(nodeId: string, edges: Edge[], acc: Set<string>) {
     const children = edges.filter((e) => e.source === nodeId).map((e) => e.target);
     for (const childId of children) {
@@ -142,6 +151,7 @@ function removeNodeDescendants(id: string) {
     (e) => !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target)
   );
 
+  // creo un nodo output para colocar al final
   const newOutputId = `output_${Date.now()}`;
   const newOutputNode: Node = {
     id: newOutputId,
@@ -161,12 +171,14 @@ function removeNodeDescendants(id: string) {
     });
   }
 
+  // aplicar cambios
   setNodes(remainingNodes);
   addEdges(remainingEdges);
   layoutGraph();
   closeEditNode();
 }
 
+// añadir nodo simple
 function handleAddSimpleNode() {
   if (!edegeAddNode.value) return;
   const parentEdge = edegeAddNode.value;
@@ -179,6 +191,7 @@ function handleAddSimpleNode() {
   addNodeEdges({ node: newNode, edges: newEdges });
 }
 
+// añadir nodo branch
 function handleAddBranchNode() {
   if (!edegeAddNode.value) return;
   const parentEdge = edegeAddNode.value;
@@ -192,6 +205,7 @@ function handleAddBranchNode() {
   addNodeEdges({ node: newNode, edges: newEdges, extraNodes: alternativeEndNode });
 }
 
+// añadir nodo goto
 function handleAddGoToNode() {
   if (!edegeAddNode.value) return;
   const parentEdge = edegeAddNode.value;
@@ -212,10 +226,12 @@ function handleAddGoToNode() {
   addNodeEdges({ node: newNode, edges: newEdges });
 }
 
+// fucion para detectar click en nodos
 function onNodeEdit(event: NodeMouseEvent) {
   const { node } = event;
   if (!node) return;
 
+  // caso sin que ningun gotoNode este activo
   if (!gotoNode.value) {
     if (node.data.type === 'branch') {
       const branchEdges = getEdges.value.filter((e) => e.source === node.id);
@@ -229,40 +245,47 @@ function onNodeEdit(event: NodeMouseEvent) {
       gotoNode.value = node;
       addClassSelectableNodes();
     }
+    // caso si gotoNode está activo
   } else {
     const targetNode = findNode(node.id);
     if (targetNode && (targetNode.data.type === 'branch' || targetNode.data.type === 'simple')) {
-      addEdges([
-        {
-          id: `e-${gotoNode.value.id}-${targetNode.id}`,
-          source: gotoNode.value.id,
-          target: targetNode.id,
-          animated: true
-        }
-      ]);
+      // Validar si ya existe un edge desde este gotoNode hacia cualquier nodo
+      const existingEdge = getEdges.value.some((e) => e.source === gotoNode.value!.id);
+      if (!existingEdge) {
+        addEdges([
+          {
+            id: `e-${gotoNode.value.id}-${targetNode.id}`,
+            source: gotoNode.value.id,
+            target: targetNode.id,
+            animated: true
+          }
+        ]);
+        // actualizo nodo goto para cambiar su icono
+        updateNode(gotoNode.value.id, {
+          ...gotoNode.value,
+          class: [
+            ...(Array.isArray(gotoNode.value.class)
+              ? gotoNode.value.class.filter((c: string) => c !== 'branch' && c !== 'simple')
+              : typeof gotoNode.value.class === 'string'
+                ? gotoNode.value.class
+                    .split(' ')
+                    .filter((c: string) => c !== 'branch' && c !== 'simple')
+                : []),
+            targetNode.data.type
+          ],
+          data: {
+            ...gotoNode.value.data,
+            icon: targetNode.data.type
+          }
+        });
+      }
       removeClassSelectableNodes();
-      updateNode(gotoNode.value.id, {
-        ...gotoNode.value,
-        class: [
-          ...(Array.isArray(gotoNode.value.class)
-            ? gotoNode.value.class.filter((c: string) => c !== 'branch' && c !== 'simple')
-            : typeof gotoNode.value.class === 'string'
-              ? gotoNode.value.class
-                  .split(' ')
-                  .filter((c: string) => c !== 'branch' && c !== 'simple')
-              : []),
-          targetNode.data.type
-        ],
-        data: {
-          ...gotoNode.value.data,
-          icon: targetNode.data.type
-        }
-      });
       gotoNode.value = null;
     }
   }
 }
 
+// funcion para editar nodos
 function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
   const { node, conditionals } = data;
   updateNode(node.id, { data: node.data });
@@ -274,6 +297,7 @@ function handleEditNode(data: { node: Node; conditionals: GraphNode[] }) {
   closeEditNode();
 }
 
+// funcion para agregar una clase a los posibles nodos seleccionables y activar animación
 function addClassSelectableNodes() {
   const allNodes = getNodes.value;
   allNodes.forEach((node) => {
@@ -286,6 +310,7 @@ function addClassSelectableNodes() {
   });
 }
 
+// elimina la clase de los nodos seleccionables
 function removeClassSelectableNodes() {
   const allNodes = getNodes.value;
   allNodes.forEach((n) => {
@@ -298,6 +323,7 @@ function removeClassSelectableNodes() {
   });
 }
 
+// funcion para reordenar los nodos en el pane
 function layoutGraph() {
   const currentNodes = getNodes.value;
   const currentEdges = getEdges.value;
