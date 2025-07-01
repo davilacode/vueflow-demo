@@ -103,6 +103,24 @@ function removeNodeDescendants(id: string) {
   const nodeToRemove = allNodes.find((n) => n.id === id);
   if (!nodeToRemove) return;
 
+  const incomingEdges = allEdges.filter((e) => e.target === id);
+  const hasGotoParent = incomingEdges.some((e) => {
+    const parentNode = allNodes.find((n) => n.id === e.source);
+    return parentNode && parentNode.data && parentNode.data.type === 'goto';
+  });
+
+  if (hasGotoParent) {
+    const edgesToRemove = incomingEdges
+      .filter((e) => {
+        const parentNode = allNodes.find((n) => n.id === e.source);
+        return parentNode && parentNode.data && parentNode.data.type === 'goto';
+      })
+      .map((e) => e.id);
+    removeEdges(edgesToRemove);
+    closeEditNode();
+    return;
+  }
+
   function getDescendants(nodeId: string, edges: Edge[], acc: Set<string>) {
     const children = edges.filter((e) => e.source === nodeId).map((e) => e.target);
     for (const childId of children) {
