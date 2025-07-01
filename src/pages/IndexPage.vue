@@ -125,8 +125,6 @@ function removeNodeDescendants(id: string) {
       })
       .map((e) => e.id);
     removeEdges(edgesToRemove);
-    closeEditNode();
-    return;
   }
 
   // busco todos los nodos descendientes
